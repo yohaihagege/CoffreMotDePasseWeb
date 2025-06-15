@@ -4,7 +4,7 @@ structure = {
     "gestionnaire_web": {
         "templates": ["login.html", "dashboard.html", "ajouter.html"],
         "static": ["style.css"],
-        "utils": ["securite.py"],
+        "utils": ["security.py"],
         "app.py": None,
         "requirements.txt": None,
         "donnees.json": None,
