@@ -3,17 +3,19 @@ from app.forms import LoginForm, SecondaryPasswordForm, PasswordEntryForm
 from app.security import generate_key, encrypt, decrypt
 from app.storage import load_data, save_data, load_secondary_password, store_secondary_password
 import os
-
+from flask import render_template, request, redirect, url_for, session, flash
+from app import app
+from app.forms import PasswordEntryForm
+from app.storage import charger_donnees, sauvegarder_donnees, generer_cle_depuis_mdp, chiffrer, dechiffrer
 routes = Blueprint('routes', __name__)
-key = None
-decrypted = False
+
 
 @routes.route("/", methods=["GET", "POST"])
 def login():
-    global key
     form = LoginForm()
+    cle = generate_key(form.master_password.data)
+    session["master_key"] = cle
     if form.validate_on_submit():
-        key = generate_key(form.master_password.data)
         sec_pwd = load_secondary_password()
         if not sec_pwd:
             # Première utilisation : demande un mot de passe secondaire
@@ -27,7 +29,8 @@ def login():
 def set_secondary():
     form = SecondaryPasswordForm()
     if form.validate_on_submit():
-        enc = encrypt(key, form.secondary_password.data)
+        cle = session.get("master_key")
+        enc = encrypt(cle, form.secondary_password.data)
         store_secondary_password(enc)
         session["authenticated"] = True
         return redirect(url_for("routes.unlock"))
@@ -43,9 +46,10 @@ def unlock():
     if form.validate_on_submit():
         enc = load_secondary_password()
         try:
-            dec = decrypt(key, enc)
+            cle = session.get("master_key")
+            dec = decrypt(cle, enc)
             if dec == form.secondary_password.data:
-                decrypted = True
+                session["secondary_verified"] = True
                 return redirect(url_for("routes.dashboard"))
             else:
                 flash("Mot de passe incorrect.")
@@ -53,32 +57,39 @@ def unlock():
             flash("Erreur de déchiffrement.")
     return render_template("secondary.html", form=form, title="Déverrouiller les mots de passe")
 
-@routes.route("/dashboard", methods=["GET", "POST"])
+@app.route("/dashboard", methods=["GET", "POST"])
 def dashboard():
-    if not decrypted:
-        return redirect(url_for("routes.unlock"))
+    if "master_key" not in session or not session.get("secondary_verified"):
+        return redirect(url_for("routes.login"))
 
+    cle = session["master_key"]
     form = PasswordEntryForm()
-    data = load_data()
-    passwords = []
+    donnees = charger_donnees()
 
-    for site, value in data.items():
+    if request.method == "POST" and form.validate_on_submit():
+        site = form.site.data
+        identifiant = form.username.data
+        motdepasse = form.password.data
+
+        # Chiffrement du mot de passe
+        motdepasse_chiffre = chiffrer(cle, motdepasse)
+
+        # Sauvegarde
+        donnees[site] = {
+            "identifiant": identifiant,
+            "motdepasse": motdepasse_chiffre.decode()
+        }
+        sauvegarder_donnees(donnees)
+        flash("Mot de passe ajouté avec succès.", "success")
+        return redirect(url_for("dashboard"))
+
+    # Déchiffrement pour affichage
+    donnees_visibles = []
+    for site, infos in donnees.items():
         try:
-            decoded = decrypt(key, value.encode())
-            identifiant, motdepasse = decoded.split(":")
-            passwords.append((site, identifiant, motdepasse))
+            motdepasse_dechiffre = dechiffrer(cle, infos["motdepasse"].encode())
         except:
-            continue
+            motdepasse_dechiffre = "Erreur de déchiffrement"
+        donnees_visibles.append((site, infos["identifiant"], motdepasse_dechiffre))
 
-    if form.validate_on_submit():
-        if len(form.password.data) < 12 or not any(c.isdigit() for c in form.password.data) or not any(c in "!@#$%^&*()-_=+[{]}\\|;:'\",<.>/?`~" for c in form.password.data):
-            flash("Mot de passe trop faible.")
-            return redirect(url_for("routes.dashboard"))
-
-        entry = f"{form.username.data}:{form.password.data}"
-        encrypted = encrypt(key, entry).decode()
-        data[form.site.data] = encrypted
-        save_data(data)
-        return redirect(url_for("routes.dashboard"))
-
-    return render_template("dashboard.html", form=form, passwords=passwords)
+    return render_template("dashboard.html", form=form, passwords=donnees_visibles)

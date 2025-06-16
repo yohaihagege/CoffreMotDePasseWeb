@@ -1,10 +1,42 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>Title</title>
-</head>
-<body>
+{% extends "base.html" %}
+{% block title %}Tableau de bord{% endblock %}
+{% block content %}
+<h2>Vos mots de passe</h2>
 
-</body>
-</html>
+<table class="table table-striped">
+    <thead>
+        <tr>
+            <th>Site</th>
+            <th>Identifiant</th>
+            <th>Mot de passe</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for site, identifiant, motdepasse in passwords %}
+        <tr>
+            <td>{{ site }}</td>
+            <td>{{ identifiant }}</td>
+            <td>{{ motdepasse }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<h3>Ajouter un mot de passe</h3>
+<form method="POST">
+    {{ form.hidden_tag() }}
+    <div class="mb-3">
+        {{ form.site.label(class="form-label") }}
+        {{ form.site(class="form-control") }}
+    </div>
+    <div class="mb-3">
+        {{ form.username.label(class="form-label") }}
+        {{ form.username(class="form-control") }}
+    </div>
+    <div class="mb-3">
+        {{ form.password.label(class="form-label") }}
+        {{ form.password(class="form-control") }}
+    </div>
+    {{ form.submit(class="btn btn-success") }}
+</form>
+{% endblock %}
