@@ -11,9 +11,15 @@ def load_key():
             return f.read()
     except FileNotFoundError:
         return None
-def chiffrer(cle, texte):
+# encrypt_to_bytes pour stocker (pas de .decode())
+def encrypt_to_bytes(cle, texte):
     f = Fernet(cle)
-    return f.encrypt(texte.encode()).decode()
+    return f.encrypt(texte.encode())
+
+# encrypt_to_str pour afficher
+def encrypt_to_str(cle, texte):
+    return encrypt_to_bytes(cle, texte).decode()
+
 
 def dechiffrer(cle, texte_chiffre):
     f = Fernet(cle)

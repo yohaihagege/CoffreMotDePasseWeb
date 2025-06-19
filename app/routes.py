@@ -1,3 +1,4 @@
+from cryptography.fernet import Fernet
 from flask import Blueprint, render_template, redirect, url_for, session, request, flash
 from app.forms import LoginForm, SecondaryPasswordForm, PasswordEntryForm
 from app.security import generate_key, chiffrer, dechiffrer
@@ -59,8 +60,8 @@ def set_secondary():
         if not cle:
             flash("Erreur : la clé de chiffrement est introuvable.", "danger")
             return redirect(url_for("routes.login"))  # ou vers une autre page
-        enc = encrypt(cle, form.secondary_password.data)
-        store_secondary_password(enc)
+        enc = Fernet(cle).encrypt(form.secondary_password.data.encode())
+        store_secondary_password(enc)  # une seule fois, pas deux
         session["authenticated"] = True
         return redirect(url_for("routes.set_secondary"))
     return render_template("secondary.html", form=form, title="Définir un mot de passe secondaire")
@@ -121,4 +122,6 @@ def dashboard():
             motdepasse_dechiffre = "Erreur de déchiffrement"
         donnees_visibles.append((site, infos["identifiant"], motdepasse_dechiffre))
 
+
     return render_template("dashboard.html", form=form, passwords=donnees_visibles)
+
