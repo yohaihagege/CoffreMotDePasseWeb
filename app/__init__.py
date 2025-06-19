@@ -2,7 +2,7 @@ from flask import Flask
 from flask_wtf.csrf import CSRFProtect
 
 app = Flask(__name__)
-app.secret_key = "ta_clef_secrete"  # À personnaliser
+app.secret_key = "m"  # À personnaliser
 csrf = CSRFProtect(app)
 
 
